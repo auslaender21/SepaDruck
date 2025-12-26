@@ -1,4 +1,5 @@
-<!DOCTYPE html>
+
+  <!DOCTYPE html>
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -107,19 +108,78 @@ function ladeVorlage() {
   if (i === '') return;
   const v = vorlagen[i];
   ['absender', 'iban_absender', 'empfaenger', 'iban_empfaenger'].forEach(id => {
-    document.getElementById(id).value = v[id];
+    document.getElementById(id).value = v[id] || '';
     document.getElementById(id).classList.add('readonly');
   });
-  ['betrag', 'referenz', 'verwendungszweck'].forEach(id => document.getElementById(id).value = '');
+  ['betrag', 'referenz', 'verwendungszweck'].forEach(id => {
+    document.getElementById(id).value = '';
+    document.getElementById(id).classList.remove('readonly');
+  });
 }
 
 function vorlageSpeichern() {
-  const v = {
-    absender: absender.value,
-    iban_absender: iban_absender.value,
-    empfaenger: empfaenger.value,
-    iban_empfaenger: iban_empfaenger.value
-  };
-  const i = vorlage.value;
-  if (i) vorlagen[i] = v; else vorlagen.push(v);
-  localStorage.setItem('sepa_vorlagen',
+  const absender = document.getElementById('absender').value;
+  const iban_absender = document.getElementById('iban_absender').value;
+  const empfaenger = document.getElementById('empfaenger').value;
+  const iban_empfaenger = document.getElementById('iban_empfaenger').value;
+  
+  if (!empfaenger) {
+    alert('Bitte Empfänger eingeben!');
+    return;
+  }
+  
+  const v = { absender, iban_absender, empfaenger, iban_empfaenger };
+  const i = document.getElementById('vorlage').value;
+  
+  if (i !== '') {
+    vorlagen[i] = v;
+  } else {
+    vorlagen.push(v);
+  }
+  
+  localStorage.setItem('sepa_vorlagen', JSON.stringify(vorlagen));
+  ladeVorlagen();
+  alert(`Vorlage "${empfaenger}" gespeichert!`);
+  
+  // Readonly-Felder zurücksetzen
+  ['absender','iban_absender','empfaenger','iban_empfaenger'].forEach(id => {
+    document.getElementById(id).classList.remove('readonly');
+  });
+}
+
+function generiereQRCode(empfaenger, iban, betrag, verwendungszweck) {
+  const text = `BCD
+002
+1
+SCT
+${empfaenger}
+${iban}
+EUR${betrag}
+
+${verwendungszweck}`;
+  const qrDiv = document.getElementById("qrcode");
+  qrDiv.innerHTML = "";
+  new QRCode(qrDiv, { text, width: 100, height: 100 });
+}
+
+function druck() {
+  const felder = ["absender","iban_absender","empfaenger","iban_empfaenger","betrag","referenz","verwendungszweck"];
+  felder.forEach(f => {
+    document.getElementById("p-"+f).textContent = document.getElementById(f).value || '';
+  });
+  generiereQRCode(
+    document.getElementById("empfaenger").value,
+    document.getElementById("iban_empfaenger").value,
+    document.getElementById("betrag").value,
+    document.getElementById("verwendungszweck").value
+  );
+  document.getElementById('schein').style.display = 'block';
+  window.print();
+  document.getElementById('schein').style.display = 'none';
+}
+
+// Initialisierung
+ladeVorlagen();
+</script>
+</body>
+</html>
