@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SEPA-Überweisung</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2274A5">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background: #f8f8f8;
+    padding: 20px;
+    line-height: 1.5;
+  }
+  form {
+    max-width: 500px;
+    margin: auto;
+    font-size: 1.3em;
+  }
+  label { display: block; margin-top: 10px; }
+  input, select {
+    width: 100%; padding: 8px; font-size: 1.1em; box-sizing: border-box;
+  }
+  input.readonly { background: #e6f4f8; }
+  button {
+    margin-top: 15px; width: 100%; padding: 12px;
+    font-size: 1.2em; background: #2274A5; color: white;
+    border: none; border-radius: 5px;
+  }
+  button.secondary { background: #666; }
+
+  .formular {
+    width: 210mm; height: 99mm;
+    background: white; position: relative;
+    border: 1px solid black; margin: 0 auto;
+  }
+  .feld {
+    position: absolute; font-family: 'Courier New', monospace; font-size: 11pt;
+  }
+  .absender { top: 10mm; left: 15mm; }
+  .iban_absender { top: 20mm; left: 15mm; }
+  .empfaenger { top: 35mm; left: 15mm; }
+  .iban_empfaenger { top: 45mm; left: 15mm; }
+  .betrag { top: 35mm; left: 150mm; width: 40mm; text-align: right; }
+  .referenz { top: 57mm; left: 15mm; }
+  .verwendungszweck { top: 67mm; left: 15mm; width: 120mm; }
+  .qr { position: absolute; top: 10mm; left: 160mm; }
+  @media print {
+    body { background: white; }
+    form { display: none; }
+    .formular { border: none; }
+  }
+</style>
+</head>
+<body>
+
+<form id="eingabe">
+  <h2>SEPA-Überweisung</h2>
+
+  <label>Vorlage wählen:</label>
+  <select id="vorlage" onchange="ladeVorlage()">
+    <option value="">-- Neue Vorlage --</option>
+  </select>
+  <button type="button" onclick="vorlageSpeichern()" class="secondary">💾 Vorlage speichern</button>
+
+  <label>Mein Name:</label><input id="absender">
+  <label>Meine IBAN:</label><input id="iban_absender">
+  <label>Empfänger:</label><input id="empfaenger">
+  <label>Empfänger IBAN:</label><input id="iban_empfaenger">
+  <label>Betrag (€):</label><input id="betrag" type="number" step="0.01">
+  <label>Kundenreferenz:</label><input id="referenz">
+  <label>Verwendungszweck:</label><input id="verwendungszweck">
+
+  <button type="button" onclick="druck()">🖨️ Drucken</button>
+</form>
+
+<!-- Drucklayout -->
+<div class="formular" id="schein" style="display:none;">
+  <div class="feld absender" id="p-absender"></div>
+  <div class="feld iban_absender" id="p-iban_absender"></div>
+  <div class="feld empfaenger" id="p-empfaenger"></div>
+  <div class="feld iban_empfaenger" id="p-iban_empfaenger"></div>
+  <div class="feld betrag" id="p-betrag"></div>
+  <div class="feld referenz" id="p-referenz"></div>
+  <div class="feld verwendungszweck" id="p-verwendungszweck"></div>
+  <div class="qr" id="qrcode"></div>
+</div>
+
+<script>
+let vorlagen = JSON.parse(localStorage.getItem('sepa_vorlagen') || '[]');
+
+function ladeVorlagen() {
+  const sel = document.getElementById('vorlage');
+  sel.innerHTML = '<option value="">-- Neue Vorlage --</option>';
+  vorlagen.forEach((v, i) => {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = v.empfaenger || `Empfänger ${i + 1}`;
+    sel.appendChild(opt);
+  });
+}
+
+function ladeVorlage() {
+  const i = document.getElementById('vorlage').value;
+  if (i === '') return;
+  const v = vorlagen[i];
+  ['absender', 'iban_absender', 'empfaenger', 'iban_empfaenger'].forEach(id => {
+    document.getElementById(id).value = v[id];
+    document.getElementById(id).classList.add('readonly');
+  });
+  ['betrag', 'referenz', 'verwendungszweck'].forEach(id => document.getElementById(id).value = '');
+}
+
+function vorlageSpeichern() {
+  const v = {
+    absender: absender.value,
+    iban_absender: iban_absender.value,
+    empfaenger: empfaenger.value,
+    iban_empfaenger: iban_empfaenger.value
+  };
+  const i = vorlage.value;
+  if (i) vorlagen[i] = v; else vorlagen.push(v);
+  localStorage.setItem('sepa_vorlagen',
